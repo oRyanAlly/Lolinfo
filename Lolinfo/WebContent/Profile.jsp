@@ -1,3 +1,5 @@
+<%@page import="java.text.DecimalFormat"%>
+<%@page import="java.text.NumberFormat"%>
 <%@page import="lolinfo.ItemsList"%>
 <%@page import="java.net.HttpURLConnection"%>
 <%@page import="java.util.List"%>
@@ -52,7 +54,6 @@
 					%>
 				</p>
 			</div>
-
 			<%
 				String sPicTier = (String) request.getAttribute("sPicTier");
 				String sTier = (String) request.getAttribute("sTier");
@@ -79,6 +80,95 @@
 				}
 			%>
 		</div>
+		<div class="container rankedChampions">
+		<h4 class="s8Title">Champions Played (Season 8)</h4>
+		<table class="table">
+		<tbody>
+			<%List<Integer[]> lChampions = (List<Integer[]>) request.getAttribute("rankChamps");
+			ArrayList<Participant> arParticipants = (ArrayList<Participant>) request.getAttribute("S8Stats");
+			ArrayList<String> arChampKeyPics = (ArrayList<String>) request.getAttribute("champKeyPics");
+			int nIncrement = 0;
+			List<Integer[]> lKDAPerChamp = new ArrayList<Integer[]>();
+			List<Integer[]> lChampWinLose = new ArrayList<Integer[]>();
+			List<Double> lKDA = new ArrayList<Double>();
+			List<Double> lTotalCS = new ArrayList<Double>();
+			List<Integer> lWinRates = new ArrayList<Integer>();
+			for(Integer[] champion : lChampions) {
+				int nKills = 0;
+				int nAssists = 0;
+				int nDeaths = 0;
+				int nWinsRank = 0;
+				int nLossesRank = 0;
+				double dTotalCS = 0;
+				int nWinRate = 0;
+				int nTotalGames = 0;
+				for(Participant participant : arParticipants) {
+					if(participant.getChampionId() == champion[0]) {
+						ParticipantStats ptStats = participant.getStats();
+						nKills = nKills + ptStats.getKills();
+						nAssists = nAssists + ptStats.getAssists();
+						nDeaths = nDeaths + ptStats.getDeaths();
+						if(ptStats.isWin()) {
+							nWinsRank = nWinsRank  + 1;
+						}
+						else {
+							nLossesRank = nLossesRank + 1;
+						}
+						dTotalCS = dTotalCS + ptStats.getTotalMinionsKilled() + ptStats.getNeutralMinionsKilled();
+					}
+				}
+				Integer[] nLastSavedKDA = new Integer[3];
+				nLastSavedKDA[0] = nKills;
+				nLastSavedKDA[1] = nAssists;
+				nLastSavedKDA[2] = nDeaths;
+				lKDAPerChamp.add(nLastSavedKDA);
+				
+				Integer[] nTotalWinsNLosses = new Integer[3];
+				nTotalWinsNLosses[0] = nWinsRank;
+				nTotalWinsNLosses[1] = nLossesRank;
+				nTotalWinsNLosses[2] = nWinsRank + nLossesRank;
+				lChampWinLose.add(nTotalWinsNLosses);
+				nTotalGames = nWinsRank + nLossesRank;
+				double dCalcTotal = dTotalCS / nTotalGames;
+				lTotalCS.add(dCalcTotal);
+				int nWinRateChamp = (nWinsRank / nTotalGames) * 100;
+				lWinRates.add(nWinRateChamp);
+				String sLink = arChampKeyPics.get(nIncrement);
+				%> <tr class="container individualChamps">
+					<td>
+					<img src="<%out.println(sLink);
+					%>" class="champion" width="64px" height="64px"/>
+					<p><%Integer[] nSavedKDA = new Integer[3];
+						nSavedKDA = lKDAPerChamp.get(nIncrement);
+						double dKDR = nSavedKDA[0] + nSavedKDA[1];
+						dKDR = Math.round(dKDR / nSavedKDA[2] * 100) / 100.0;
+						out.println(dKDR);%></p>
+					<p>
+					<% Integer[] nWinLose = new Integer[3];
+					   nWinLose = lChampWinLose.get(nIncrement);
+					   out.println(nWinLose[2] + "G");
+					   out.println(nWinLose[0] + "W");
+					   out.println(nWinLose[1] + "L");%>
+					</p>
+					<p>
+					<%
+					double dTotalCSDisplay = lTotalCS.get(nIncrement);
+					out.println(dTotalCSDisplay);%>
+					</p>
+					<p>
+					<%int nChampWinRate = lWinRates.get(nIncrement);
+					out.println(nChampWinRate);%>
+					</p>
+						</td>
+				</tr>
+				
+			<%
+			nIncrement++;
+			}
+			%>
+				</tbody>
+			</table>
+		</div>
 		<%
 			ArrayList<String> lPictures = (ArrayList<String>) request.getAttribute("champPics");
 			ArrayList<Participant> participants = (ArrayList<Participant>) request.getAttribute("participants");
@@ -87,6 +177,7 @@
 			ArrayList<String> arSpells2 = (ArrayList<String>) request.getAttribute("summonerSpells2");
 			ArrayList<String> lMaps = (ArrayList<String>)request.getAttribute("MAPS");
 			ArrayList<ItemsList> lItems = (ArrayList<ItemsList>) request.getAttribute("itemsList");
+			ArrayList<Long> matchDurations = (ArrayList<Long>) request.getAttribute("matchDurations");
 			int nCount = 0;
 			int nMapCount = 0;
 			for (String sPic : lPictures) {
@@ -98,6 +189,7 @@
 				String winColor = "129, 207, 224, 0.4";
 				String sWinorLose = "";
 				int nTotalCS = 0;
+				Long lgGameDuration = matchDurations.get(nCount);
 				if (partStats.isWin()) {
 		%>
 		<div class="container matches"
@@ -201,17 +293,48 @@
 				%>
 			</p>
 			<p class="maps">
-				<%out.println(sMap);%>
+				<%if(sMap.contains("Draft")) {
+					out.println("Normal (Draft Pick)");
+				} else if(sMap.contains("Blind")) {
+					out.println("Normal (Blind Pick)");
+				} else if(sMap.contains("ARAM")) {
+					out.println("ARAM");
+				}
+				else if(sMap.contains("Ranked")) {
+					out.println("Ranked Solo/Duo");
+				} else {
+					out.println(sMap);
+				}
+				%>
 			</p>
-			<%if(sWinorLose == "DEFEAT") { %>
-			<p class="totalCS" style="margin-top: 10px">
+			<%if(sWinorLose.equals("DEFEAT")) { %>
+			<p class="totalCS" style="margin-top: -5px">
 			<% nTotalCS = partStats.getTotalMinionsKilled() + partStats.getNeutralMinionsKilled();
-			out.println(nTotalCS + "CS"); 
+			out.println(nTotalCS); 
+			%>
+			<img src="images/icons/minion.png"/>
+			</p>
+			<%
 			} else {
 				%>
 				<p class="totalCS">
 				<% nTotalCS = partStats.getTotalMinionsKilled() + partStats.getNeutralMinionsKilled();
-				out.println(nTotalCS + "CS");  }%>
+				out.println(nTotalCS); %>
+				<img src="images/icons/minion.png"/>
+				<%} %>
+			</p>
+			<p class="totalGold">
+			<%
+			NumberFormat goldCurrency = NumberFormat.getIntegerInstance();
+			out.println(goldCurrency.format(partStats.getGoldEarned()));
+			%>
+			<img src="images/icons/gold.png" style="margin-top: 10px;"/>
+			</p>
+			<p class="gameDuration">
+				<%DecimalFormat df = new DecimalFormat("00.##"); 
+				int nSeconds = lgGameDuration.intValue() % 60;
+				int nMinutes = lgGameDuration.intValue() / 60;
+				out.println(nMinutes + ":" + df.format(nSeconds));%>
 			</p>
 			</div>
 			<%}%>

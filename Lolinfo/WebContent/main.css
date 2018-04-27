@@ -103,7 +103,7 @@ html, body {
 	width: 700px !important;
 	height: 100px;
 	float: left;
-	clear: both;
+	clear: left;
 	border: 1px solid;
 	border-left-style: hidden;
 }
@@ -183,14 +183,47 @@ html, body {
 }
 .maps {
 	margin-top: 0px;
-	margin-left: 565px;
-	width: 103px;
+	margin-left: 547px;
+	width: auto;
 	vertical-align: top;
 	color: whitesmoke;
+	font-size: small;
+	text-align: center;
 }
 .totalCS {
-	margin-top: 20px;
+	margin-top: 15px;
 	margin-left: 300px;
 	color: black;
+	font-weight: bold;
+	color: #3F4045;
+}
+.totalGold {
+	margin-top: -47px;
+	margin-left: 450px;
+	color: black;
+	font-weight: bold;
+	color: #3F4045;
+}
+.gameDuration {
+	margin-top: -45px;
+	margin-left: 547px;
+	width: auto;
+	vertical-align: top;
+	color: #3F4045;
+	font-size: small;
+	text-align: center;
+}
+.rankedChampions {
+	background-color: rgba(0, 0, 0, 0.5);
+	width: 400px;
+	height: auto;
+	float: right;
+	border: 1px solid;
+	border-right-style: hidden;
+	clear:both;
+}
+.s8Title {
+	font-size: small;
+	color: #d8dce3;
 	
 }

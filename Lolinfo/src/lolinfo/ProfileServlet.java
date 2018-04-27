@@ -9,7 +9,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -168,7 +172,7 @@ public class ProfileServlet extends HttpServlet {
 			List<String> lSummonerSpells2 = new ArrayList<String>();
 			List<Integer> lQueueIDs = new ArrayList<Integer>();
 			List<ItemsList> lItems = new ArrayList<ItemsList>();
-
+			ArrayList<Long> matchDurations = new ArrayList<Long>();
 			// Display recent (20) matches
 			for (Long gameId : gameIds) {
 				Match match = api.getMatch(pServer, gameId);
@@ -225,7 +229,8 @@ public class ProfileServlet extends HttpServlet {
 				itemsList.setnItem7(participantStat.getItem6());
 
 				lItems.add(itemsList);
-
+				matchDurations.add(match.getGameDuration());
+				request.setAttribute("matchDurations", matchDurations);
 				request.setAttribute("participants", participants);
 				request.setAttribute("pt", pt);
 				request.setAttribute("summonerSpells1", lSummonerSpells1);
@@ -253,8 +258,7 @@ public class ProfileServlet extends HttpServlet {
 
 				} else if (checkImageURL(item.getsItem6()) == false) {
 					item.setsItem6(
-							"http://ddragon.leagueoflegends.com/cdn/8.8.1/img/item/" + item.getnItem6()+ ".png");
-
+							"http://ddragon.leagueoflegends.com/cdn/8.8.1/img/item/" + item.getnItem6() + ".png");
 
 				} else if (checkImageURL(item.getsItem7()) == false) {
 					item.setsItem7(
@@ -265,11 +269,11 @@ public class ProfileServlet extends HttpServlet {
 			}
 			List<String> lMaps = new ArrayList<String>();
 			for (Integer queueIDs : lQueueIDs) {
-				String sFindMap = "SELECT MAP FROM APP.MATCHMAKINGQUEUE WHERE ID= " + queueIDs;
+				String sFindMap = "SELECT DESCRIPTION FROM APP.MATCHMAKINGQUEUE WHERE ID= " + queueIDs;
 				Statement stmtFindMap = connect.createStatement();
 				ResultSet rsFindMap = stmtFindMap.executeQuery(sFindMap);
 				while (rsFindMap.next()) {
-					lMaps.add(rsFindMap.getString("MAP"));
+					lMaps.add(rsFindMap.getString("DESCRIPTION"));
 				}
 			}
 			request.setAttribute("MAPS", lMaps);
@@ -313,6 +317,69 @@ public class ProfileServlet extends HttpServlet {
 			request.setAttribute("summonerName", summoner.getName());
 			request.setAttribute("summonerPicture", sProfilePicture);
 
+			// Grab Seasonal Champion Statistics
+			// 420 - Ranked Games
+			Set<Integer> lsQueueID = new HashSet<>();
+			lsQueueID.add(420);
+
+			Set<Integer> lsChampIDs = new HashSet<>();
+
+			Set<Integer> lsSeasons = new HashSet<>();
+			int nSeasonID = 11;
+			lsSeasons.add(nSeasonID);
+			MatchList mSeasonStats = api.getMatchListByAccountId(pServer, accountId, lsChampIDs, lsQueueID, lsSeasons);
+			List<Integer> lChampionsS8 = new ArrayList<>();
+			ArrayList<Long> mSeasonGameIDS = new ArrayList<Long>();
+			if (mSeasonStats.getMatches().size() != 0) {
+				ArrayList<Participant> arParticipants = new ArrayList<Participant>();
+				for (MatchReference matchReference : mSeasonStats.getMatches()) {
+					mSeasonGameIDS.add(matchReference.getGameId());
+				}				
+				for (Long seasonGameID : mSeasonGameIDS) {
+					Match match = api.getMatch(pServer, seasonGameID);
+					Participant participant = match.getParticipantByAccountId(accountId);
+					int nNewChamp = 0;
+					nNewChamp = participant.getChampionId();
+					lChampionsS8.add(nNewChamp);
+					arParticipants.add(participant);
+				}
+				request.setAttribute("S8Stats", arParticipants);
+			}
+			List<Integer> updatedChamps = new ArrayList<>();
+			List<Integer[]> revisedChampList = new ArrayList<>();
+			int nCount = 0;
+			for(Integer nChamp : lChampionsS8) {
+				if(updatedChamps.contains(nChamp) != true) {
+					int nCurrChamp = nChamp;
+					updatedChamps.add(nCurrChamp);
+				}
+			}
+			for(Integer i : updatedChamps) {
+				Integer[] currChamp = new Integer[2];
+				currChamp[0] = i;
+				currChamp[1] = Collections.frequency(lChampionsS8, i);
+				revisedChampList.add(currChamp);
+			} 
+			Collections.sort(revisedChampList, new sortList());
+
+			List<String> arChampKeyIMGS = new ArrayList<String>();
+			for(Integer[] individualChamps : revisedChampList) {
+				String sFindChamp = "SELECT CHAMPKEY FROM APP.CHAMPIONS WHERE ID= " + individualChamps[0];
+				Statement stmtFindIndi = connect.createStatement();
+				ResultSet rsIndi = stmtFindIndi.executeQuery(sFindChamp);
+				while(rsIndi.next()) {
+					String sIndivKey = rsIndi.getString("CHAMPKEY");
+					sIndivKey = sIndivKey.replaceAll("\\s+", "");
+					String sChampKeyPic = "https://ddragon.leagueoflegends.com/cdn/8.8.1/img/champion/" + sIndivKey
+							+ ".png";
+					arChampKeyIMGS.add(sChampKeyPic);
+				}
+			}
+			request.setAttribute("champKeyPics", arChampKeyIMGS);
+			
+
+			request.setAttribute("rankChamps", revisedChampList);
+			
 			request.getRequestDispatcher("/Profile.jsp").forward(request, response);
 
 		} catch (RiotApiException e) {
@@ -336,6 +403,12 @@ public class ProfileServlet extends HttpServlet {
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
+		}
+	}
+	//https://www.geeksforgeeks.org/collections-sort-java-examples/
+	public class sortList implements Comparator<Integer[]> {
+		public int compare (Integer[] nA, Integer[] nB) {
+			return nB[1] - nA[1];
 		}
 	}
 }
